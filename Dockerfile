@@ -111,6 +111,31 @@ RUN chown -R isaac:isaac /home/isaac/MobilityGen/app/kit/python && \
     chown -R isaac:isaac /home/isaac/isaac-sim/
 USER isaac
 
+# Download and install Miniconda3
+RUN mkdir -p ~/miniconda3 && \
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh && \
+    bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3 && \
+    rm ~/miniconda3/miniconda.sh
+
+# Make conda available in the PATH
+RUN echo 'export PATH=~/miniconda3/bin:$PATH' >> ~/.bashrc
+
+# Root user: Create symlink to conda in system path
+USER root
+RUN ln -s /home/isaac/miniconda3/bin/conda /usr/local/bin/conda
+USER isaac
+
+# Initialize conda for bash shell
+RUN ~/miniconda3/bin/conda init bash && \
+    . ~/.bashrc
+
+# Create .condarc with Tsinghua mirrors
+# RUN echo "channels:\n  - defaults\nshow_channel_urls: true\ndefault_channels:\n  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main\n  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/r\n  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/msys2\ncustom_channels:\n  conda-forge: https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud\n  pytorch: https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud" > ~/.condarc
+
+# 安装基础插件
+RUN ../app/python.sh -m pip config set global.index-url https://mirrors.aliyun.com/pypi/simple
+RUN ../app/python.sh -m pip install --upgrade pip
+
 # Install pybind11
 RUN ../app/python.sh -m pip install pybind11
 
@@ -126,4 +151,32 @@ RUN ../app/python.sh -m pip install tqdm
 # Install gradio
 RUN ../app/python.sh -m pip install gradio
 
-WORKDIR  /home/isaac
+WORKDIR /home/isaac
+
+# 安装isaac lab - 第1步: 克隆代码库
+RUN git clone https://github.com/isaac-sim/IsaacLab.git 
+
+# 安装isaac lab - 第2步: 创建软链接
+RUN cd IsaacLab && \
+    ln -s /home/isaac/isaac-sim _isaac_sim && \
+    chmod +x ./isaaclab.sh
+
+# 安装isaac lab - 第3步: 运行conda安装
+RUN cd IsaacLab && \
+    export TERM=xterm && \
+    export ISAACSIM_PATH="/home/isaac/isaac-sim" && \
+    export ISAACSIM_PYTHON_EXE="${ISAACSIM_PATH}/python.sh" && \
+    ./isaaclab.sh --conda
+
+# 设置shell为bash
+SHELL ["/bin/bash", "-c"]
+
+# 安装isaac lab - 第4步: 安装rsl_rl
+RUN cd IsaacLab && \
+    export TERM=xterm && \
+    export PATH=/home/isaac/miniconda3/bin:$PATH && \
+    source /home/isaac/miniconda3/bin/activate env_isaaclab && \
+    ./isaaclab.sh --install rsl_rl
+
+WORKDIR /home/isaac
+
