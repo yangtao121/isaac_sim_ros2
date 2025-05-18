@@ -176,7 +176,8 @@ RUN cd IsaacLab && \
     export TERM=xterm && \
     export PATH=/home/isaac/miniconda3/bin:$PATH && \
     source /home/isaac/miniconda3/bin/activate env_isaaclab && \
-    ./isaaclab.sh --install rsl_rl
+    ./isaaclab.sh --install rsl_rl && \
+    ./isaaclab.sh --install skrl
 
 WORKDIR /home/isaac
 
